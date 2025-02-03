@@ -3,6 +3,8 @@ class AITutor {
         this.currentModule = 0;
         this.currentLesson = 0;
         this.context = [];
+        this.score = 0;
+        this.currentQuizTotal = 0;
     }
 
     processMessage(message) {
@@ -88,9 +90,24 @@ class AITutor {
         }
 
         const quiz = this.currentLesson.quiz;
-        return `Quiz Question: ${quiz.question}\n\n${
-            quiz.options.map((option, index) => `${index + 1}. ${option}`).join('\n')
-        }\n\nPlease select your answer (1-${quiz.options.length}).`;
+        this.quizOptions = quiz.options.map((option, index) => ({
+            id: index,
+            text: option,
+            isCorrect: index === quiz.correctAnswer,
+            isSelected: false,
+        }));
+        this.currentQuizTotal = quiz.options.length;
+        this.score = 0;
+        this.updateScoreUI();
+
+        return `Quiz Question: ${quiz.question}\n\n${this.quizOptions
+            .map(
+                (option, index) =>
+                    `${index + 1}. ${option.text} <span id="option-${
+                        option.id
+                    }" class="quiz-option"></span>`
+            )
+            .join("\n")}`;
     }
 
     checkQuizAnswer(answer) {
@@ -100,13 +117,23 @@ class AITutor {
 
         const quiz = this.currentLesson.quiz;
         const userAnswer = parseInt(answer) - 1;
+        const selectedOption = this.quizOptions[userAnswer];
 
-        if (userAnswer === quiz.correctAnswer) {
+        if (selectedOption.isCorrect) {
+            this.score += 1;
             markLessonComplete(this.currentLesson.id);
-            return "Correct! Well done! You can move on to the next lesson.";
+            this.updateScoreUI();
+            return `Correct! Well done! Your current score is ${this.score}/${this.currentQuizTotal}. You can move on to the next lesson.`;
         } else {
-            return `Incorrect. The correct answer is: ${quiz.options[quiz.correctAnswer]}. Would you like to review the lesson?`;
+            const correctOption = this.quizOptions.find(option => option.isCorrect);
+            this.updateScoreUI();
+            return `Incorrect. The correct answer is: ${correctOption.text}. Your current score is ${this.score}/${this.currentQuizTotal}. Would you like to review the lesson?`;
         }
+    }
+
+    updateScoreUI() {
+        document.getElementById('current-score').textContent = this.score;
+        document.getElementById('total-score').textContent = this.currentQuizTotal;
     }
 
     getHelpMessage() {
